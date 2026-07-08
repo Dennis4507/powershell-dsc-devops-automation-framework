@@ -1,0 +1,8 @@
+﻿MOF/
+*.mof
+.terraform/
+*.tfstate
+*.tfstate.backup
+.env
+secrets/
+*.psd1.local
