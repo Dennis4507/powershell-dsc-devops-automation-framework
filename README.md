@@ -38,12 +38,13 @@ order.
 8. [Deep dive: `Apply-ControlPlane.ps1` (the "go" button - DONE)](#8-deep-dive-apply-controlplaneps1-the-go-button---done)
 9. [Deep dive: `ControlPlane.config.psd1` (the answer sheet - DONE)](#9-deep-dive-controlplaneconfigpsd1-the-answer-sheet---done)
 10. [Deep dive: `ControlPlane.Tests.ps1` (the tests - DONE, 15/15 passing)](#10-deep-dive-controlplanetestsps1-the-tests---done-1515-passing)
-11. [Real-world testing journey: what broke, and how we actually fixed it](#11-real-world-testing-journey-what-broke-and-how-we-actually-fixed-it)
-12. [Scaling past one machine (relevant once client rollouts start)](#12-scaling-past-one-machine-relevant-once-client-rollouts-start)
-13. [How we're actually building this (our working method)](#13-how-were-actually-building-this-our-working-method)
-14. [Quick start](#14-quick-start)
-15. [Roadmap - what's left to build](#15-roadmap---whats-left-to-build)
-16. [Tech stack (what's actually used, and why)](#16-tech-stack-whats-actually-used-and-why)
+11. [Deep dive: the skills library (`.claude/agents/`)](#11-deep-dive-the-skills-library-claudeagents)
+12. [Real-world testing journey: what broke, and how we actually fixed it](#12-real-world-testing-journey-what-broke-and-how-we-actually-fixed-it)
+13. [Scaling past one machine (relevant once client rollouts start)](#13-scaling-past-one-machine-relevant-once-client-rollouts-start)
+14. [How we're actually building this (our working method)](#14-how-were-actually-building-this-our-working-method)
+15. [Quick start](#15-quick-start)
+16. [Roadmap - what's left to build](#16-roadmap---whats-left-to-build)
+17. [Tech stack (what's actually used, and why)](#17-tech-stack-whats-actually-used-and-why)
 
 *(Note: GitHub auto-generates these jump-links from the headings above -
 if any link doesn't land exactly right, the section is still easy to find
@@ -402,7 +403,64 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 
 ---
 
-## 11. Real-world testing journey: what broke, and how we actually fixed it
+## 11. Deep dive: the skills library (`.claude/agents/`)
+
+Everything from section 6 through 10 is **Layer 1** - the DSC checklist
+that keeps a Windows machine correctly configured. This section is
+**Layer 2** - the "operations" layer that helps diagnose and fix problems
+in whatever's actually *running* on top of that machine, using Claude
+Code. See section 3 for how the layers relate.
+
+### The 4 skills
+
+| File | What it does |
+|---|---|
+| `01-incident-diagnosis.md` | Investigates an alert/error and reports a root cause. Read-only - never changes anything. |
+| `02-remediation-pr.md` | Turns a diagnosis into a real PR - a fix, a test, and a rollback plan. Never merges itself. |
+| `03-cost-drift-analysis.md` | Flags cloud spend that's drifted from baseline, across Hetzner/AWS/Azure. Report only. |
+| `04-pipeline-health.md` | Diagnoses a failed CI/CD run, hands off to remediation if a code fix will work. |
+
+Here's `01-incident-diagnosis.md` actually open and readable, proving this
+isn't just described in this README - it's a real file, in a real folder,
+sitting right next to the DSC checklist:
+
+![The skills library, open and readable - 01-incident-diagnosis.md, with the approved-fixes/ folder visible in the file tree](docs/images/11-skills-library-real-files.png)
+
+### The approval gate - and its one narrow exception
+
+Every PR these skills produce requires manual approval before merging -
+with exactly one exception, and it's deliberately narrow. The
+`approved-fixes/` folder holds problem-and-solution pairs that have been
+manually approved **at least twice already** - only then can a pattern be
+promoted to auto-merge-with-alert, and only Denis can promote one; no
+skill can add to this folder itself.
+
+Two real example entries, showing what a graduated pattern actually looks
+like once documented - one tied to this very repo, one tied to the real
+production platform this framework was built for:
+
+![The DSC drift safe-reapply entry - exact match conditions and explicit boundaries that fall back to manual review](docs/images/12-approved-fix-dsc-drift.png)
+
+![The Celery worker OOM-restart entry - same pattern, applied to the real HeRiko eBay Platform](docs/images/13-approved-fix-celery-oom.png)
+
+Neither entry has real reference PRs linked yet (see the placeholder line
+in each file) - that's honest, not a gap: no pattern has actually been
+manually approved twice yet in real use. These are the rulebook, written
+in advance, ready for when that happens.
+
+### Who can use this
+
+Anyone who clones this repo gets this folder automatically - a freelance
+developer or a client's own team, not just Denis. They can invoke a skill
+themselves to diagnose a problem or draft a fix PR, and every skill's
+output includes its evidence (logs, test results) specifically so a
+teammate can independently verify a suggested fix is real *before* it
+ever reaches Denis for approval. The approval gate itself never moves,
+regardless of who invoked the skill.
+
+---
+
+## 12. Real-world testing journey: what broke, and how we actually fixed it
 
 Everything above was proven two ways already (mocked unit tests, a compile
 check). But the only real proof is running it on an actual machine - so we
@@ -663,6 +721,11 @@ separate checks: `Invoke-ScriptAnalyzer` again (did the fixes satisfy the
 linter?) and the full Pester suite again (did the rename break anything
 across the 3 files it touched?):
 
+Here's that re-run actually scrolling through each individual test case,
+followed by the final confirmed result with the summary line:
+
+![The Pester re-run in progress - each individual test case passing, scrolled to an earlier point in the same run](docs/images/10b-pester-run-in-progress.png)
+
 ![Pester re-run after both fixes - still 15/15, and Test-VirtualEnvPresent visible in the output, confirming the rename went through cleanly everywhere](docs/images/10-pester-verified-after-fixes.png)
 
 Both came back clean - PSScriptAnalyzer printed nothing (verified
@@ -676,9 +739,49 @@ suppress it explicitly with a real reason when it isn't. Blindly obeying
 every warning, or blindly ignoring all of them, are both worse than
 actually thinking about each one.
 
+### One more incident - GitHub blocked the push, briefly
+
+Pushing this repo to GitHub for the first time hit its own real snag.
+Before pushing anything, we checked the current state:
+
+```powershell
+git status
+git remote -v
+```
+
+![git status before the first push - shows every file changed/added this session, and no remote configured yet](docs/images/14-git-status-before-push.png)
+
+No remote existed yet, so we created the GitHub repo and pushed. The push
+was **rejected**, with a message about a Personal Access Token needing
+`workflow` scope: GitHub treats anything inside `.github/workflows/`
+specially, since that folder controls automated pipelines - and this
+project's initial scaffold included an empty placeholder file there
+(`validate-dsc.yml`, just a `# TODO` comment) that our access token wasn't
+approved to touch.
+
+Rather than spend time editing token permissions mid-push, we used a
+faster, equally valid fix:
+
+```powershell
+git rm --cached .github/workflows/validate-dsc.yml
+git commit -m "Remove empty workflow stub for now"
+git push -u origin main
+```
+
+`git rm --cached` means "stop tracking this file in git, but leave it
+sitting on disk untouched." With that one empty file excluded, nothing
+left in the push touched the restricted folder, and everything else - all
+the real files - went through cleanly. The real `validate-dsc.yml` gets
+added back properly once it has actual content (see the roadmap).
+
+**The lesson:** a blocked push doesn't always mean "fix your credentials"
+- sometimes the faster, equally correct move is to remove the one thing
+actually causing the conflict and deal with it properly later, rather than
+stopping everything to fix a permission that isn't needed yet.
+
 ---
 
-## 12. Scaling past one machine (relevant once client rollouts start)
+## 13. Scaling past one machine (relevant once client rollouts start)
 
 Right now `AllNodes` has one entry (`localhost` - my backup VM). If
 this ever needs to manage many machines (e.g. a whole client fleet),
@@ -702,7 +805,7 @@ the same shape just grows:
 
 ---
 
-## 13. How we're actually building this (our working method)
+## 14. How we're actually building this (our working method)
 
 This project is being built **as a learning exercise, one small,
 fully-explained piece at a time** - not generated all at once. The
@@ -715,10 +818,10 @@ notebook, not a one-time doc.
 
 ---
 
-## 14. Quick start
+## 15. Quick start
 
 This exact flow has been run for real, end to end, and verified
-independently afterward - see section 11 for the proof (and the two real
+independently afterward - see section 12 for the proof (and the real
 environment issues we hit and fixed along the way).
 
 ```powershell
@@ -735,7 +838,7 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 
 ---
 
-## 15. Roadmap - what's left to build
+## 16. Roadmap - what's left to build
 
 - [ ] `.github/workflows/validate-dsc.yml` - automatically re-checks the checklist for mistakes every time it changes (Layer 3)
 - [ ] `docs/how-to-plug-in.md` - step-by-step guide for pointing this at a brand-new machine
@@ -745,7 +848,7 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 
 ---
 
-## 16. Tech stack (what's actually used, and why)
+## 17. Tech stack (what's actually used, and why)
 
 | Tool | What it's for here |
 |---|---|

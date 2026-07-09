@@ -257,6 +257,13 @@ GitHub Actions workflow:
 - Runner: windows-latest
 - Steps: Install Pester → Run Pester tests → Validate DSC syntax (PSScriptAnalyzer) → Report results
 
+**⚠️ Reminder when building this:** this file is currently listed in
+`.gitignore` (our GitHub access token lacks `workflow` scope, so pushing
+any change to `.github/workflows/*` gets rejected). Before writing real
+content here, either fix the token's scope or be ready to do so - and
+**remove the `.gitignore` line for this file**, otherwise the real content
+will be silently ignored by git and never actually get pushed.
+
 ---
 
 ## Technical Decisions Already Made
