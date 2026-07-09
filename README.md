@@ -1,10 +1,18 @@
 # PowerShell DSC DevOps Automation Framework
 
-A plug-and-play toolkit that keeps a Windows machine "self-healing" -
-it checks itself against a written checklist and automatically fixes
-anything that's drifted out of shape. Built to run on **my own Azure
-backup VM** first, and designed from day one to be **dropped into any
-client's environment** with only a config file changed, nothing else.
+### The short version of what this actually is
+
+This is not just a PowerShell DSC project. It is the first, foundational
+piece of a larger DevOps automation platform - one built to eventually
+watch over and help fix problems across most of the projects I work on,
+including work done by freelance developers and a client's own
+infrastructure, while I stay the one person who approves anything that
+actually ships. **DSC is where this starts, not where it ends.** Before
+any automation can safely diagnose and fix real problems, the machine
+that automation runs on has to be provably, verifiably correct. This
+repository builds that trustworthy foundation first, then adds
+AI-supervised operations on top of it. See section 3 for the full
+3-layer picture.
 
 This README is written so that **future-me (or anyone else) can come
 back after months away and immediately remember what this is, why it
@@ -14,17 +22,29 @@ order.
 
 ### At a glance
 
-- **What it is:** a self-checking, self-fixing setup tool for Windows
-  machines, built on PowerShell's built-in DSC (Desired State
-  Configuration) feature.
-- **What it solves:** stops a Windows machine from silently drifting
-  out of correct configuration (missing tools, broken settings) with
-  nobody noticing.
-- **Status:** the core framework is built, automatically tested
-  (15/15 tests passing), and verified working end-to-end on a real
-  machine - not just in theory.
-- **Who it's for:** solo/small-team DevOps work - used today on my own
-  Azure backup VM, designed to be reused on client machines too.
+- **What it is:** a 3-layer DevOps automation platform. **Layer 1**
+  (this repo's core, fully built) keeps Windows machines correctly
+  configured using PowerShell DSC (Desired State Configuration).
+  **Layer 2** is an AI skills library that diagnoses problems and
+  proposes fixes as pull requests. **Layer 3** is CI/CD and
+  infrastructure-as-code, getting code and infrastructure where they
+  need to be.
+- **Why DSC comes first:** you cannot safely automate fixes on top of a
+  machine whose own state might already be broken. DSC guarantees the
+  ground is solid before anything else gets built on it - it's the
+  trust anchor the rest of the platform depends on.
+- **What it solves today:** stops a Windows machine from silently
+  drifting out of correct configuration (missing tools, broken
+  settings) with nobody noticing.
+- **Status:** Layer 1 is fully built, automatically tested (15/15
+  passing), and verified working end-to-end on a real machine. Layer 2's
+  core skill files are written; the automatic trigger connecting real
+  alerts to them is the next major piece (see the roadmap). Layer 3 is
+  partially planned.
+- **Who it's for:** today, my own Azure backup VM and production
+  systems. The intended future: freelance developers and client
+  infrastructure too, with me as the sole approval gate on everything
+  that actually ships.
 
 ### Table of contents
 
@@ -85,6 +105,12 @@ fixing anything wrong automatically - no manual babysitting.
 - **Client platforms** - the same framework, just pointed at a
   different project folder via one config file. No rewriting scripts
   per client.
+
+**This is only step one.** Fixing machine drift matters on its own, but
+it also matters because everything else this platform is meant to do -
+diagnosing real incidents, proposing fixes, watching cloud costs, keeping
+CI/CD healthy - only makes sense to automate on a machine you can already
+trust. Section 3 explains how this piece connects to that bigger picture.
 
 ---
 
@@ -840,11 +866,32 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 
 ## 16. Roadmap - what's left to build
 
-- [ ] `.github/workflows/validate-dsc.yml` - automatically re-checks the checklist for mistakes every time it changes (Layer 3)
+- [ ] **The trigger/wiring layer (the biggest real gap right now).** Today,
+  a person still has to manually ask Claude Code to use a skill. Real
+  automation needs something that automatically notices a real problem
+  (a Sentry alert, a failed GitHub Actions run, an Alertmanager firing)
+  and starts the right skill without a person doing it by hand - either a
+  webhook receiver, or Claude Code checking on a schedule. This belongs
+  on the same Azure VM as the rest of Layer 3, since it needs to be
+  running even when a personal PC is turned off (Layer 2 + Layer 3)
+- [ ] Actually run `terraform apply` against a real Azure subscription, once
+  reviewed and ready to incur real cost (Layer 3)
+- [ ] Prove `azure/azure-ad-dsc.ps1` against a free Microsoft 365
+  developer tenant, following `docs/m365-dsc-production-notes.md` (Layer 3)
+- [ ] `.github/workflows/validate-dsc.yml` - automatically re-checks the checklist for mistakes every time it changes; currently blocked by a token permission scope, see `.gitignore` (Layer 3)
 - [ ] `docs/how-to-plug-in.md` - step-by-step guide for pointing this at a brand-new machine
-- [ ] `azure/main.tf` + `azure/azure-ad-dsc.ps1` - provision an Azure VM (Terraform) and wire this checklist to run on it automatically, plus manage Azure AD/Entra ID objects the same declarative way (Layer 3)
 - [ ] `linux/control-plane.yml` - the same checklist idea, for Linux machines, using Ansible instead of DSC (Layer 1)
-- [ ] `.claude/agents/` - AI-assisted workflows for diagnosing incidents, drafting fix PRs, and tracking cloud cost drift on top of this framework (Layer 2)
+
+**Already written, not just planned:** `azure/main.tf` (the Terraform
+skeleton for the VM itself), `azure/install-microsoft365dsc.yml` (an
+Ansible playbook that fully automates installing Microsoft365DSC on that
+VM over WinRM, including the same disk-space check we did by hand - see
+`docs/m365-dsc-production-notes.md`), the 4 skills files, and the
+`approved-fixes/` precedent library (Layer 2) - see section 11. None of
+the Terraform or Ansible pieces have been run against a real Azure
+subscription yet - both are honestly labeled as not yet applied. What's
+still missing is the automatic trigger listed above, not the skills
+themselves.
 
 ---
 
@@ -856,5 +903,6 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 | **Pester v6** | PowerShell's testing framework - confirms each checklist item behaves correctly before it ever touches a real machine |
 | **PSScriptAnalyzer** | Lints PowerShell code for style/quality issues automatically |
 | **Terraform** | Provisions the Azure VM itself (infrastructure-as-code, separate from DSC's job of configuring what's *on* the VM) |
-| **Ansible** | Linux equivalent of this same checklist idea |
+| **Ansible** | Two jobs: (1) the planned Linux equivalent of the Windows checklist, and (2) automates the one-time install of Microsoft365DSC onto the Azure VM over WinRM - see `azure/install-microsoft365dsc.yml` |
+| **Microsoft365DSC** | Community-maintained DSC module for managing Microsoft 365/Azure AD declaratively - see `azure/azure-ad-dsc.ps1` |
 | **GitHub Actions** | Automatically re-validates the checklist every time it changes, so mistakes get caught before they reach a real machine |

@@ -1,0 +1,72 @@
+---
+# install-microsoft365dsc.yml
+#
+# An Ansible playbook that fully automatically installs the Microsoft365DSC
+# PowerShell module onto the control-plane VM - this is the automated
+# version of the manual steps described in docs/m365-dsc-production-notes.md.
+#
+# HOW IT CONNECTS: Ansible normally manages Linux machines over SSH, but it
+# can manage Windows machines too, over WinRM (Windows Remote Management) -
+# the exact same connection method this framework already turned on for DSC
+# itself (see README section 12, the real WinRM troubleshooting story).
+#
+# WHY ANSIBLE HERE, AND NOT DSC: DSC's job is ongoing enforcement - it keeps
+# checking, forever, "is this still correct?" Ansible's job here is
+# different - a one-time, heavier setup step (installing a large module and
+# its dependencies) that happens once when a machine is first provisioned,
+# not something that needs continuous re-checking the same way.
+#
+# STATUS: written to show the intended shape - not yet run against a real
+# VM. See azure/inventory.example.ini for how to point this at a real
+# machine once one exists (e.g. the VM azure/main.tf creates).
+
+- name: Provision Microsoft365DSC on the control plane VM
+  hosts: control_plane_vm
+  gather_facts: false
+
+  tasks:
+    - name: Check free disk space before installing anything
+      win_shell: (Get-PSDrive C).Free / 1GB
+      register: free_space_gb
+      changed_when: false
+
+    - name: Stop early if there isn't enough room
+      fail:
+        msg: >
+          Only {{ free_space_gb.stdout | trim }} GB free on this VM.
+          Microsoft365DSC and its dependencies typically need 1-2+ GB.
+          Provision a larger disk before continuing - this is the same
+          check we did by hand before deciding not to install it locally.
+      when: (free_space_gb.stdout | trim | float) < 3
+
+    - name: Ensure the NuGet package provider is installed
+      win_shell: |
+        if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers
+        }
+      changed_when: true
+
+    - name: Trust the PowerShell Gallery so the install does not prompt
+      win_shell: Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+      changed_when: true
+
+    - name: Install Microsoft365DSC if it is not already there
+      win_shell: |
+        if (-not (Get-Module -ListAvailable Microsoft365DSC)) {
+          Install-Module Microsoft365DSC -Force -Scope AllUsers -AllowClobber
+          Write-Output 'Installed'
+        } else {
+          Write-Output 'AlreadyPresent'
+        }
+      register: install_result
+      changed_when: "'Installed' in install_result.stdout"
+
+    - name: Confirm the module is genuinely available now
+      win_shell: (Get-Module -ListAvailable Microsoft365DSC) -ne $null
+      register: confirm_result
+      changed_when: false
+      failed_when: "'True' not in confirm_result.stdout"
+
+    - name: Report the result
+      debug:
+        msg: "Microsoft365DSC installed and confirmed: {{ confirm_result.stdout | trim }}"

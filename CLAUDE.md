@@ -272,10 +272,12 @@ will be silently ignored by git and never actually get pushed.
 - **Pester version**: v5 (modern syntax — use `Should -Be`, not legacy `Should Be`)
 - **No external DSC resource modules** for core config — keep dependencies minimal
 - **AzureAD/Microsoft365DSC**: add as optional dependency for azure/ components only
+- **Microsoft365DSC runs on the Azure VM, never on a personal machine**: it needs significant disk space (1-2+ GB with dependencies) and holds access to a client's tenant, so it belongs on the same dedicated Azure VM that `azure/main.tf` provisions for the Windows checklist - not on Denis's own PC. See `docs/m365-dsc-production-notes.md`.
 - **Python environment**: use built-in `Script` DSC resource, not community modules
 - **Config data**: `.psd1` format (PowerShell data file) — standard DSC pattern
 - **One-command apply**: `Apply-ControlPlane.ps1` wraps everything
 - **AI operations layer**: `.claude/agents/` skills folder — Denis's unique differentiator
+- **No Azure App Service, ever, for the trigger/wiring layer**: the future trigger listener (what will notice a real alert and start a skill) must run on the same Azure VM that `azure/main.tf` provisions, not a separate App Service. The whole point of this project is that nothing runs on infrastructure DSC isn't watching — a separate App Service would sit outside that trust boundary. Once built, the listener gets its own `ControlPlane.ps1` checklist item, the same Test/Set pattern as everything else, so DSC watches it too.
 
 ---
 
@@ -335,15 +337,23 @@ git push -u origin main
 
 ## What "Done" Looks Like
 
-- [ ] `windows/ControlPlane.ps1` — DSC config with 6+ resources, comment-based help
-- [ ] `windows/ControlPlane.Tests.ps1` — Pester v5 tests covering all resources
-- [ ] `windows/ControlPlane.config.psd1` — config data template
-- [ ] `windows/Apply-ControlPlane.ps1` — one-command apply wrapper
-- [ ] `.claude/agents/` — 4 skill agent files
-- [ ] `README.md` — SEO-optimised, keyword-rich, badges, ASCII diagram
-- [ ] `azure/main.tf` — Terraform for Azure VM + DSC Extension
-- [ ] `azure/azure-ad-dsc.ps1` — Azure AD DSC config
+- [x] `windows/ControlPlane.ps1` — DSC config, 8 checklist items, comment-based help
+- [x] `windows/ControlPlane.Helpers.psm1` — testable logic, extracted for real unit testing
+- [x] `windows/ControlPlane.Tests.ps1` — Pester tests covering all resources (15/15 passing)
+- [x] `windows/ControlPlane.config.psd1` — config data template
+- [x] `windows/Apply-ControlPlane.ps1` — one-command apply wrapper
+- [x] `.claude/agents/` — 4 skill agent files + `approved-fixes/` precedent library
+- [x] `README.md` — full narrative, real screenshots, 3-layer framing
+- [x] `azure/azure-ad-dsc.ps1` — Microsoft 365/Azure AD DSC skeleton (not yet run against a real tenant — see `docs/m365-dsc-production-notes.md`)
+- [x] `azure/main.tf` + `variables.tf` + `outputs.tf` — Terraform for the Azure VM (not yet run with `terraform apply` — no Terraform CLI or Azure credentials used tonight, this creates real billed resources)
+- [x] `azure/install-microsoft365dsc.yml` + `inventory.example.ini` — Ansible playbook that fully automates installing Microsoft365DSC on the VM over WinRM (not yet run against a real VM, since none exists yet)
+- [x] GitHub repo created and pushed
+- [ ] **The trigger/wiring layer** — nothing yet automatically connects a real
+      alert (Sentry, Prometheus, a failed GitHub Actions run) to actually
+      invoking a skill. This is the single biggest remaining gap between
+      "skills are written" and "98% of DevOps work is actually automated."
+      Belongs on the same Azure VM that `azure/main.tf` provisions.
+- [ ] Actually run `terraform apply` against a real Azure subscription, once reviewed and ready to incur real cost
 - [ ] `linux/control-plane.yml` — Ansible equivalent
-- [ ] `.github/workflows/validate-dsc.yml` — CI/CD validation
-- [ ] GitHub repo created and pushed
+- [ ] `.github/workflows/validate-dsc.yml` — CI/CD validation (currently blocked by a GitHub token permission scope — see `.gitignore`)
 - [ ] CV updated with DSC bullet referencing this repo
