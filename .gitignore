@@ -6,11 +6,3 @@
 .env
 secrets/
 *.psd1.local
-
-# TEMPORARY - still an empty stub (see CLAUDE.md roadmap item 10).
-# Our GitHub access token lacks the `workflow` scope needed to push
-# changes to anything in .github/workflows/, so this is ignored for now
-# to avoid blocking pushes. REMOVE THIS LINE once the real CI content is
-# written for validate-dsc.yml - otherwise git will silently ignore that
-# real content too.
-.github/workflows/validate-dsc.yml
