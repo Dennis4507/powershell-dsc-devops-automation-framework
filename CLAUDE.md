@@ -347,6 +347,9 @@ git push -u origin main
 - [x] `azure/azure-ad-dsc.ps1` — Microsoft 365/Azure AD DSC skeleton (not yet run against a real tenant — see `docs/m365-dsc-production-notes.md`)
 - [x] `azure/main.tf` + `variables.tf` + `outputs.tf` — Terraform for the Azure VM (not yet run with `terraform apply` — no Terraform CLI or Azure credentials used tonight, this creates real billed resources)
 - [x] `azure/install-microsoft365dsc.yml` + `inventory.example.ini` — Ansible playbook that fully automates installing Microsoft365DSC on the VM over WinRM (not yet run against a real VM, since none exists yet)
+- [x] `linux/control-plane.yml` — Ansible equivalent of the Windows checklist, syntax-checked via WSL (not yet run against a real Linux machine)
+- [x] `.github/workflows/validate-dsc.yml` — real CI content, pushed and live
+- [x] `docs/how-to-plug-in.md` — step-by-step guide, real example, links to section 11 for troubleshooting
 - [x] GitHub repo created and pushed
 - [ ] **The trigger/wiring layer** — nothing yet automatically connects a real
       alert (Sentry, Prometheus, a failed GitHub Actions run) to actually

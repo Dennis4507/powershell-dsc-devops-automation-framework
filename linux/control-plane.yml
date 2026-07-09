@@ -1,1 +1,106 @@
-﻿# TODO: See CLAUDE.md — Build Priority 9
+---
+# control-plane.yml
+#
+# The Linux equivalent of windows/ControlPlane.ps1 - the exact same
+# 8-item checklist idea, written using Ansible instead of PowerShell DSC.
+# Same goal either way: describe what should be true on this machine,
+# then let the tool check it and fix anything wrong automatically.
+#
+# Run with: ansible-playbook -i inventory.ini control-plane.yml
+
+- name: Enforce desired state of a Linux DevOps control plane
+  hosts: control_plane
+  become: true
+
+  vars:
+    project_name: MyProject
+    project_path: /opt/myproject
+    python_version: "3.11"
+    venv_name: .venv
+    requirements_file: requirements.txt
+    ssl_cert_path: certs
+    scheduled_jobs:
+      - name: daily-maintenance
+        script: "{{ project_path }}/scripts/daily.sh"
+        hour: "6"
+        minute: "30"
+    env_vars:
+      APP_ENV: production
+
+  tasks:
+    # --- Checklist item 1: the project directory must exist ---
+    # (Windows equivalent: the File resource, ProjectDirectory)
+    - name: Ensure the project directory exists
+      ansible.builtin.file:
+        path: "{{ project_path }}"
+        state: directory
+        mode: "0755"
+
+    # --- Checklist item 2: Git must be installed ---
+    # (Windows equivalent: Script resource GitInstalled)
+    - name: Ensure Git is installed
+      ansible.builtin.apt:
+        name: git
+        state: present
+        update_cache: true
+
+    # --- Checklist item 3: Python must be installed ---
+    # (Windows equivalent: Script resource PythonInstalled)
+    - name: "Ensure Python {{ python_version }} is installed"
+      ansible.builtin.apt:
+        name: "python{{ python_version }}"
+        state: present
+
+    - name: Ensure pip and the venv module are installed
+      ansible.builtin.apt:
+        name:
+          - python3-pip
+          - "python{{ python_version }}-venv"
+        state: present
+
+    # --- Checklist item 4: a virtual environment must exist ---
+    # (Windows equivalent: Script resource VirtualEnvironment)
+    - name: Ensure the virtual environment exists
+      ansible.builtin.command:
+        cmd: "python{{ python_version }} -m venv {{ project_path }}/{{ venv_name }}"
+        creates: "{{ project_path }}/{{ venv_name }}/bin/activate"
+
+    # --- Checklist item 5: required pip packages must be installed ---
+    # (Windows equivalent: Script resource PipPackagesInstalled)
+    - name: Ensure required pip packages are installed
+      ansible.builtin.pip:
+        requirements: "{{ project_path }}/{{ requirements_file }}"
+        virtualenv: "{{ project_path }}/{{ venv_name }}"
+
+    # --- Checklist item 6: each scheduled job must be registered ---
+    # (Windows equivalent: the foreach loop over ScheduledJobs, Task Scheduler)
+    - name: Ensure each scheduled job exists as a cron job
+      ansible.builtin.cron:
+        name: "{{ item.name }}"
+        job: "{{ item.script }}"
+        hour: "{{ item.hour }}"
+        minute: "{{ item.minute }}"
+      loop: "{{ scheduled_jobs }}"
+
+    # --- Checklist item 7: warn (never auto-fix) if SSL certs are missing ---
+    # (Windows equivalent: Script resource SslCertificatePresence)
+    - name: Check whether the SSL certificate folder exists
+      ansible.builtin.stat:
+        path: "{{ project_path }}/{{ ssl_cert_path }}"
+      register: ssl_cert_check
+
+    - name: Warn if SSL certificates are missing (never auto-generated)
+      ansible.builtin.debug:
+        msg: >
+          SSL certificate folder not found at {{ project_path }}/{{ ssl_cert_path }}.
+          This framework never auto-generates certificates - add them manually.
+      when: not ssl_cert_check.stat.exists
+
+    # --- Checklist item 8: required environment variables must be set ---
+    # (Windows equivalent: the foreach loop over EnvVars, Environment resource)
+    - name: Ensure required environment variables are set system-wide
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        line: "{{ item.key }}={{ item.value }}"
+        regexp: "^{{ item.key }}="
+      loop: "{{ env_vars | dict2items }}"

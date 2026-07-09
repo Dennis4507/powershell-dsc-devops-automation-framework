@@ -878,17 +878,19 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
   reviewed and ready to incur real cost (Layer 3)
 - [ ] Prove `azure/azure-ad-dsc.ps1` against a free Microsoft 365
   developer tenant, following `docs/m365-dsc-production-notes.md` (Layer 3)
-- [ ] `.github/workflows/validate-dsc.yml` - automatically re-checks the checklist for mistakes every time it changes; currently blocked by a token permission scope, see `.gitignore` (Layer 3)
-- [ ] `docs/how-to-plug-in.md` - step-by-step guide for pointing this at a brand-new machine
-- [ ] `linux/control-plane.yml` - the same checklist idea, for Linux machines, using Ansible instead of DSC (Layer 1)
 
-**Already written, not just planned:** `azure/main.tf` (the Terraform
-skeleton for the VM itself), `azure/install-microsoft365dsc.yml` (an
-Ansible playbook that fully automates installing Microsoft365DSC on that
+**Already written, not just planned:** `docs/how-to-plug-in.md` (a real
+step-by-step guide, including what to do if something goes wrong),
+`azure/main.tf` (the Terraform skeleton for the VM itself),
+`azure/install-microsoft365dsc.yml` (an Ansible playbook that fully
+automates installing Microsoft365DSC on that
 VM over WinRM, including the same disk-space check we did by hand - see
-`docs/m365-dsc-production-notes.md`), the 4 skills files, and the
-`approved-fixes/` precedent library (Layer 2) - see section 11. None of
-the Terraform or Ansible pieces have been run against a real Azure
+`docs/m365-dsc-production-notes.md`), `linux/control-plane.yml` (the
+Ansible equivalent of the Windows checklist, syntax-checked for real via
+WSL), `.github/workflows/validate-dsc.yml` (real CI content, live now),
+the 4 skills files, and the `approved-fixes/` precedent library
+(Layer 2) - see section 11. None of the Terraform or Ansible pieces have
+been run against a real Azure
 subscription yet - both are honestly labeled as not yet applied. What's
 still missing is the automatic trigger listed above, not the skills
 themselves.
