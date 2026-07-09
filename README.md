@@ -406,10 +406,12 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 
 Everything above was proven two ways already (mocked unit tests, a compile
 check). But the only real proof is running it on an actual machine - so we
-did. It hit two genuine, real environment problems along the way. Both are
-documented here exactly as they happened, screenshots included, because
-this is honestly the most useful section in the whole README if you ever
-hit the same walls.
+did. It hit real, genuine problems along the way - both environment issues
+while getting it running for the first time, and a later code-quality pass
+that needed real judgment calls, not blind rule-following. All of it is
+documented here exactly as it happened, screenshots included, because this
+is honestly the most useful section in the whole README if you ever hit
+the same walls.
 
 ### Step 0 - proof the checklist actually compiles into a real file
 
@@ -598,6 +600,81 @@ bigger change than necessary, we tested whether we actually needed that
 piece - we didn't. Once everything was resolved, the framework worked
 correctly on the very next real attempt, with zero changes ever needed to
 the checklist itself.
+
+### A later incident - PSScriptAnalyzer, and a real judgment call
+
+A separate session, a different tool: **PSScriptAnalyzer** is PowerShell's
+built-in code-quality checker - think of it as a spell-checker, but for
+coding habits instead of spelling. It doesn't run your code, it just reads
+it and flags patterns that experienced PowerShell developers generally
+consider bad habits.
+
+```powershell
+Invoke-ScriptAnalyzer -Path .\windows -Recurse -Severity Warning,Error
+```
+
+This flagged 13 things - but they needed two genuinely different
+responses, not one blanket fix:
+
+![The initial PSScriptAnalyzer scan - 12 Write-Host warnings, plus a plural-noun warning further down](docs/images/07-scriptanalyzer-initial-findings.png)
+
+**12 of the 13** were "you used `Write-Host`." Its generic advice: use
+`Write-Output` instead, since `Write-Host`'s output can't be captured by
+other scripts. **We deliberately did not follow that advice.**
+`Apply-ControlPlane.ps1` is an interactive tool meant to be *watched* by a
+human while it runs - the colored progress messages (green "OK," cyan
+section headers) only work because of `Write-Host`. Switching to
+`Write-Output` would have satisfied the linter while making the actual
+tool worse. Instead, we wrote a **suppression** - a formal, documented "I
+see this rule, and I'm deliberately not following it here, for this
+specific reason" - attached directly to the script:
+
+```powershell
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingWriteHost', '',
+    Justification = 'This script is an interactive, human-run console tool...'
+)]
+```
+
+The first attempt at this suppression actually failed - PowerShell
+requires the `Justification` text to be one single, plain block of text,
+and the first version built it by gluing several pieces together with
+`+`, which isn't allowed at that specific spot. Here's the real fix,
+before and after:
+
+![Fixing the suppression - the Justification text rewritten as one continuous string instead of pieces joined with +](docs/images/08-suppression-attribute-fix.png)
+
+**The 13th finding was different and genuinely worth fixing**, not
+suppressing: a function named `Test-VirtualEnvExists` was flagged for
+"using a plural noun." PowerShell style expects singular function names -
+though the rule itself is a bit naive (it just checks whether the name
+ends in the letter "s," and "Exists" happens to, even though it isn't
+really plural). Since the fix was easy and genuinely made the codebase
+more consistent (matching a function we already had,
+`Test-SslCertificatePresent`), we renamed it - in all 3 files that
+referenced it:
+
+![The rename, shown as a real diff - Test-VirtualEnvExists to Test-VirtualEnvPresent](docs/images/09-rename-test-virtualenvpresent.png)
+
+**Why we had to check two different things afterward, not just one:**
+renaming something used in 3 places is risky - miss updating even one
+spot and things silently break. So after both fixes, we re-ran *two*
+separate checks: `Invoke-ScriptAnalyzer` again (did the fixes satisfy the
+linter?) and the full Pester suite again (did the rename break anything
+across the 3 files it touched?):
+
+![Pester re-run after both fixes - still 15/15, and Test-VirtualEnvPresent visible in the output, confirming the rename went through cleanly everywhere](docs/images/10-pester-verified-after-fixes.png)
+
+Both came back clean - PSScriptAnalyzer printed nothing (verified
+directly, not assumed), and Pester stayed at 15 passed, 0 failed.
+
+**The lesson:** a linter's suggestions are exactly that - suggestions, not
+commands. The right response is to understand *why* a rule exists, decide
+whether it actually applies to your specific situation, and document that
+decision either way - fix it properly when it's a real improvement,
+suppress it explicitly with a real reason when it isn't. Blindly obeying
+every warning, or blindly ignoring all of them, are both worse than
+actually thinking about each one.
 
 ---
 

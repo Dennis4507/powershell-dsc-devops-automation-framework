@@ -47,7 +47,7 @@ function Test-PythonVersionOk {
     return ($installed -ge $required)
 }
 
-function Test-VirtualEnvExists {
+function Test-VirtualEnvPresent {
     [CmdletBinding()]
     [OutputType([bool])]
     param(

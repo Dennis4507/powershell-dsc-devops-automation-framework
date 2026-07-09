@@ -76,12 +76,12 @@ Describe 'Test-PythonVersionOk' {
     }
 }
 
-Describe 'Test-VirtualEnvExists' {
+Describe 'Test-VirtualEnvPresent' {
     Context 'when the .venv folder exists' {
         It 'returns $true' {
             Mock -ModuleName ControlPlane.Helpers Test-Path { $true }
 
-            Test-VirtualEnvExists -ProjectPath 'C:\Projects\Demo' -VenvName '.venv' | Should -BeTrue
+            Test-VirtualEnvPresent -ProjectPath 'C:\Projects\Demo' -VenvName '.venv' | Should -BeTrue
         }
     }
 
@@ -89,7 +89,7 @@ Describe 'Test-VirtualEnvExists' {
         It 'returns $false' {
             Mock -ModuleName ControlPlane.Helpers Test-Path { $false }
 
-            Test-VirtualEnvExists -ProjectPath 'C:\Projects\Demo' -VenvName '.venv' | Should -BeFalse
+            Test-VirtualEnvPresent -ProjectPath 'C:\Projects\Demo' -VenvName '.venv' | Should -BeFalse
         }
     }
 }

@@ -17,6 +17,10 @@
     scheduled tasks, and set machine-wide environment variables.
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingWriteHost', '',
+    Justification = 'This script is an interactive, human-run console tool. Write-Host is used deliberately for colored progress/status output as each step runs; the suggested alternatives would lose that, and nothing downstream ever captures this output programmatically.'
+)]
 [CmdletBinding()]
 param(
     [string]$ConfigDataPath = (Join-Path $PSScriptRoot 'ControlPlane.config.psd1'),

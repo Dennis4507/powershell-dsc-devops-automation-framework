@@ -75,11 +75,11 @@ Configuration ControlPlane
         {
             GetScript = {
                 Import-Module $using:HelpersModulePath -Force
-                return @{ Result = Test-VirtualEnvExists -ProjectPath $using:Node.ProjectPath -VenvName $using:Node.VenvName }
+                return @{ Result = Test-VirtualEnvPresent -ProjectPath $using:Node.ProjectPath -VenvName $using:Node.VenvName }
             }
             TestScript = {
                 Import-Module $using:HelpersModulePath -Force
-                return Test-VirtualEnvExists -ProjectPath $using:Node.ProjectPath -VenvName $using:Node.VenvName
+                return Test-VirtualEnvPresent -ProjectPath $using:Node.ProjectPath -VenvName $using:Node.VenvName
             }
             SetScript = {
                 $venvPath = Join-Path $using:Node.ProjectPath $using:Node.VenvName
