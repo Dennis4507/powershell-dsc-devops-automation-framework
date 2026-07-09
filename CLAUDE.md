@@ -11,6 +11,70 @@ This project was created on 2026-07-08 as:
 
 ---
 
+## Business Goal & Direction — Read This Before Writing Any Code
+
+### The Real Production Problem
+Denis operates multiple production projects from ONE Windows machine (the control plane):
+- HeRiko eBay Platform — Hetzner K3s, 12 services (FastAPI, Celery, CLIP/FAISS, PostgreSQL, Prometheus, Grafana, Loki, Sentry, Alertmanager, EfficientNet)
+- HeRiko WooCommerce — AWS, 50,000 products
+- Knowledge Base + AI Interview Assistant — local FastAPI
+- Client work — neighbour Amazon seller deploying ecommerce to cloud
+
+**Nothing enforces that Windows machine stays in the correct state.** If Python breaks, a venv disappears, a Task Scheduler job vanishes, or an env var resets — Denis fixes it manually. DSC is the fix.
+
+---
+
+### The 3-Layer Model (anchor everything here)
+
+Layer 1 — ENVIRONMENT (DSC)
+"Is this Windows machine configured correctly to do the work?"
+→ Python, Git, venv, Task Scheduler, SSL certs, env vars — enforced idempotently
+
+Layer 2 — OPERATIONS (CLAUDE.md + skills library)
+"Are the apps healthy? Fix problems automatically."
+→ Prometheus/Sentry fires → Claude diagnoses → skills agent creates PR → Denis approves
+
+Layer 3 — DEPLOYMENT (GitHub Actions + Terraform)
+"Get code and infrastructure to where it needs to be."
+→ CI/CD, IaC, zero-downtime deploys
+
+
+
+These layers are **independent**. DSC doesn't know about CLAUDE.md. Each answers one question. Together they form a complete autonomous DevOps system.
+
+---
+
+### The Widget Concept
+Drop this framework into any project — Denis's own or a client's:
+1. Clone repo
+2. Edit `ControlPlane.config.psd1` — 5 minutes
+3. Run `.\Apply-ControlPlane.ps1`
+→ Any Windows machine becomes a DevOps control plane.
+
+**Real client scenario:** Denis's neighbour is an Amazon seller. Denis arrives (or connects remotely), drops the framework on the neighbour's machine, edits the psd1, runs one command. Machine is provisioned. Denis deploys the app via Terraform + GitHub Actions. Neighbour never touches infrastructure.
+
+This is what Concentrix does for enterprise clients. Same pattern, different scale.
+
+---
+
+### Two Goals — Both Matter
+1. **PRODUCTION**: Reproducible Windows control plane. Used across all Denis's projects and client work.
+2. **CV/PORTFOLIO**: Concentrix interview Friday 2026-07-11. Proves DSC, Pester, PSScriptAnalyzer, GitHub Actions, plug-and-play architecture delivery.
+
+---
+
+### Build Philosophy — The Guardrail
+**Build these 4 files first. They are the real deliverable:**
+1. `windows/ControlPlane.ps1` — DSC configuration
+2. `windows/ControlPlane.Tests.ps1` — Pester v5 tests
+3. `windows/ControlPlane.config.psd1` — config data
+4. `windows/Apply-ControlPlane.ps1` — one-command wrapper
+
+**If those 4 are done, the project is real and usable.** Everything else is bonus.
+Do NOT add complexity for its own sake. Every file must solve a real problem Denis has today.
+
+---
+
 ## What This Project Is
 
 A **plug-and-play PowerShell DSC framework** that enforces desired state of Windows DevOps control planes and integrates with an AI-supervised operations model (Claude Code + CLAUDE.md + skills library).
