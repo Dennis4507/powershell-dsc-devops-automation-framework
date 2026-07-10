@@ -5,7 +5,7 @@
 GitHub: Dennis4507 | Email: riungudenis63@gmail.com
 
 This project was created on 2026-07-08 as:
-1. A portfolio piece for a Concentrix Infrastructure Automation Engineer interview (Friday 2026-07-11)
+1. A portfolio piece for a Concentrix Infrastructure Automation Engineer interview (Friday 2026-07-10 — corrected from an earlier wrong date; verify against the actual recruiter email before trusting any date in this repo)
 2. A genuine reusable DevOps automation framework Denis uses across his own production systems
 3. A demonstration of PowerShell DSC + AI-supervised DevOps operations
 
@@ -59,7 +59,7 @@ This is what Concentrix does for enterprise clients. Same pattern, different sca
 
 ### Two Goals — Both Matter
 1. **PRODUCTION**: Reproducible Windows control plane. Used across all Denis's projects and client work.
-2. **CV/PORTFOLIO**: Concentrix interview Friday 2026-07-11. Proves DSC, Pester, PSScriptAnalyzer, GitHub Actions, plug-and-play architecture delivery.
+2. **CV/PORTFOLIO**: Concentrix interview Friday 2026-07-10. Proves DSC, Pester, PSScriptAnalyzer, GitHub Actions, plug-and-play architecture delivery.
 
 ---
 
@@ -130,7 +130,7 @@ powershell-dsc-devops-automation-framework/
 
 ---
 
-## Build Priority Order (Interview is Friday 2026-07-11)
+## Build Priority Order (Interview is Friday 2026-07-10)
 
 Build in this exact order — most important first:
 
@@ -269,7 +269,7 @@ will be silently ignored by git and never actually get pushed.
 ## Technical Decisions Already Made
 
 - **DSC module**: `PSDesiredStateConfiguration` (built-in, no install). Do NOT use xPSDesiredStateConfiguration unless needed for specific resources.
-- **Pester version**: v5 (modern syntax — use `Should -Be`, not legacy `Should Be`)
+- **Pester version**: v5+ modern syntax required (`Should -Be`, not legacy `Should Be`). `Install-Module -MinimumVersion 5.0` is what `validate-dsc.yml` and local setup both use. The actual version that got installed and used throughout real testing tonight was **6.0.0** — confirmed directly from a real `Get-Module -ListAvailable Pester` run, not assumed. README section 17 correctly says "Pester v6" for this reason — that line was already accurate, not a bug.
 - **No external DSC resource modules** for core config — keep dependencies minimal
 - **AzureAD/Microsoft365DSC**: add as optional dependency for azure/ components only
 - **Microsoft365DSC runs on the Azure VM, never on a personal machine**: it needs significant disk space (1-2+ GB with dependencies) and holds access to a client's tenant, so it belongs on the same dedicated Azure VM that `azure/main.tf` provisions for the Windows checklist - not on Denis's own PC. See `docs/m365-dsc-production-notes.md`.

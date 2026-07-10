@@ -191,9 +191,9 @@ turning into one tangled script:
 
 | Layer | Question it answers | How it's answered | Status |
 |---|---|---|---|
-| **1. Environment** | "Is this Windows machine set up correctly to do the work?" | **DSC** - `ControlPlane.ps1` (this repo) | ✅ core checklist done |
-| **2. Operations** | "Are the apps actually healthy? Fix problems automatically." | **CLAUDE.md + skills library** - Prometheus/Sentry fires an alert -> Claude Code diagnoses it -> a skills agent drafts a fix as a pull request -> I approve it | 🔜 planned (`.claude/agents/`) |
-| **3. Deployment** | "Get code and infrastructure to where it needs to be." | **GitHub Actions + Terraform** - CI/CD pipelines, infrastructure-as-code, zero-downtime deploys | 🔜 planned (`azure/`, `.github/workflows/`) |
+| **1. Environment** | "Is this Windows machine set up correctly to do the work?" | **DSC** - `ControlPlane.ps1` (this repo) | ✅ done, tested, verified end-to-end on a real machine |
+| **2. Operations** | "Are the apps actually healthy? Fix problems automatically." | **CLAUDE.md + skills library** - Prometheus/Sentry fires an alert -> Claude Code diagnoses it -> a skills agent drafts a fix as a pull request -> I approve it | ✅ skills + approval-gate precedent system built (`.claude/agents/`) - 🔜 the automatic trigger connecting a real alert to invoking a skill is still the one open piece |
+| **3. Deployment** | "Get code and infrastructure to where it needs to be." | **GitHub Actions + Terraform** - CI/CD pipelines, infrastructure-as-code, zero-downtime deploys | ✅ GitHub Actions CI live - 🔜 Terraform/Ansible/Microsoft365DSC written and reviewed, not yet applied to real infrastructure |
 
 **Why split it into layers at all?** Each layer answers exactly one
 question and doesn't need to know about the others. DSC (layer 1)
@@ -252,21 +252,25 @@ powershell-dsc-devops-automation-framework/
 │
 ├── docs/
 │   ├── learning-style-guide.md            ✅ DONE - how we explain things, plus glossary
-│   ├── images/                            ✅ DONE - real testing + troubleshooting proof (sections 10-11)
-│   ├── how-to-plug-in.md                  🔜 planned - step-by-step "use this on a new machine"
+│   ├── images/                            ✅ DONE - real testing + troubleshooting proof (sections 10-12)
+│   ├── how-to-plug-in.md                  ✅ DONE - step-by-step "use this on a new machine"
+│   ├── m365-dsc-production-notes.md       ✅ DONE - real path to production for the M365 skeleton below
 │   └── azure-vm-setup.md                  🔜 planned - Azure VM + DSC extension guide
 │
 ├── azure/                                                                    Layer 3
-│   ├── main.tf, variables.tf, outputs.tf  🔜 planned - Terraform to provision an Azure VM + wire up DSC
-│   └── azure-ad-dsc.ps1                   🔜 planned - DSC for Azure AD / Entra ID objects
+│   ├── main.tf, variables.tf, outputs.tf  ✅ DONE (written, reviewed) - 🔜 not yet applied to a real subscription
+│   ├── azure-ad-dsc.ps1                   ✅ DONE (skeleton) - 🔜 not yet run against a real tenant
+│   ├── install-microsoft365dsc.yml        ✅ DONE - Ansible playbook automating the M365DSC install over WinRM
+│   └── inventory.example.ini              ✅ DONE - example Ansible inventory template
 │
 ├── linux/
-│   └── control-plane.yml                  🔜 planned - Ansible equivalent, for Linux machines - Layer 1
+│   └── control-plane.yml                  ✅ DONE - Ansible equivalent, for Linux machines - Layer 1
 │
 ├── .github/workflows/                                                        Layer 3
-│   └── validate-dsc.yml                   🔜 planned - tests this checklist automatically on every change
+│   └── validate-dsc.yml                   ✅ DONE - real, live CI: tests this checklist on every change
 │
-└── .claude/agents/                        🔜 planned - AI-assisted incident/cost/pipeline workflows - Layer 2
+└── .claude/agents/                        ✅ DONE - 4 skills + approved-fixes precedent library - Layer 2
+    (the automatic trigger connecting a real alert to invoking a skill is still 🔜 open - see the roadmap)
 ```
 
 ---
