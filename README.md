@@ -869,11 +869,16 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
 - [ ] **The trigger/wiring layer (the biggest real gap right now).** Today,
   a person still has to manually ask Claude Code to use a skill. Real
   automation needs something that automatically notices a real problem
-  (a Sentry alert, a failed GitHub Actions run, an Alertmanager firing)
-  and starts the right skill without a person doing it by hand - either a
-  webhook receiver, or Claude Code checking on a schedule. This belongs
-  on the same Azure VM as the rest of Layer 3, since it needs to be
-  running even when a personal PC is turned off (Layer 2 + Layer 3)
+  and starts the right skill without a person doing it by hand. This
+  belongs on the same Azure VM as the rest of Layer 3, since it needs to
+  be running even when a personal PC is turned off (Layer 2 + Layer 3).
+  **Decision: pull-based first, not push/webhook** - a scheduled task on
+  the VM polls Prometheus's and Sentry's own APIs on an interval instead
+  of exposing an inbound webhook endpoint. Simpler and safer to start
+  with (no open door on the internet, no signature verification to get
+  right), at the cost of a small delay instead of instant notification.
+  Push-based webhooks can be added later for Alertmanager specifically,
+  once the simpler version is proven safe in practice.
 - [ ] Actually run `terraform apply` against a real Azure subscription, once
   reviewed and ready to incur real cost (Layer 3)
 - [ ] Prove `azure/azure-ad-dsc.ps1` against a free Microsoft 365

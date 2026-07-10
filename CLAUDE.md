@@ -356,7 +356,14 @@ git push -u origin main
       invoking a skill. This is the single biggest remaining gap between
       "skills are written" and "98% of DevOps work is actually automated."
       Belongs on the same Azure VM that `azure/main.tf` provisions.
+      **Decision: pull-based first, not push/webhook.** A scheduled task on
+      the VM polls Prometheus's and Sentry's own APIs on an interval (e.g.
+      every 5 minutes) rather than exposing an inbound webhook endpoint on
+      the VM. Simpler, no open door on the internet, no signature
+      verification to get right. Trade-off: a small delay (up to one poll
+      interval) instead of instant notification. Push-based webhooks
+      (Alertmanager receivers, Sentry webhooks) can be added later for
+      Alertmanager specifically, once the simpler pull version is proven
+      safe in practice - not before.
 - [ ] Actually run `terraform apply` against a real Azure subscription, once reviewed and ready to incur real cost
-- [ ] `linux/control-plane.yml` — Ansible equivalent
-- [ ] `.github/workflows/validate-dsc.yml` — CI/CD validation (currently blocked by a GitHub token permission scope — see `.gitignore`)
 - [ ] CV updated with DSC bullet referencing this repo
