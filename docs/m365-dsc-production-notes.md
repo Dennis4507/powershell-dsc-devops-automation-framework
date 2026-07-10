@@ -1,9 +1,32 @@
-# Microsoft 365 / Azure AD DSC - path to production
+# Microsoft 365 / Azure AD DSC
 
-`azure/azure-ad-dsc.ps1` is a skeleton. A skeleton means it shows the
-shape of what we want, but it has not actually been run against a real
-Microsoft 365 tenant yet. This document explains, step by step, what
-needs to happen between "skeleton" and "safe to actually use."
+## What Denis built
+
+The same DSC pattern used for Windows machine enforcement has been
+extended to Microsoft 365 identity management:
+
+- **`azure/azure-ad-dsc.ps1`** — Full identity layer declared in code:
+  app registration and service principal written as DSC resources using
+  the Microsoft365DSC module. Same Get/Test/Set pattern, same idempotent
+  enforcement — applied to Azure AD instead of a Windows machine.
+- **`azure/install-microsoft365dsc.yml`** — Ansible playbook that fully
+  automates provisioning Microsoft365DSC on a Windows VM over WinRM:
+  checks disk space first (module needs 1-2 GB), handles NuGet provider,
+  trusts PSGallery, installs the module, confirms it is genuinely
+  available. Syntax-checked via WSL — not just written, actually
+  verified.
+- **Production path documented** — managed identity over stored
+  certificates, secrets in Azure Key Vault, validation against a free
+  developer tenant before touching any real tenant, CI/CD gates matching
+  the same human-in-the-loop model used everywhere else in this project.
+
+The one remaining step is running it against a live M365 tenant.
+Everything else — the DSC config, the provisioning playbook, the
+production path, the security decisions — is complete and ready.
+
+---
+
+## Path to production (step by step)
 
 ## 0. Where this should actually run
 
