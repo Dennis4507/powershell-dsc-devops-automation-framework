@@ -164,7 +164,7 @@ Describe 'ControlPlane.ps1 compiles into a valid MOF' {
         Join-Path $script:MofOutputPath 'localhost.mof' | Should -Exist
     }
 
-    It 'contains all 8 expected checklist items' {
+    It 'contains all 9 expected checklist items' {
         $expectedItems = @(
             'ProjectDirectory',
             'GitInstalled',
@@ -173,7 +173,8 @@ Describe 'ControlPlane.ps1 compiles into a valid MOF' {
             'PipPackagesInstalled',
             'ScheduledJob_DailyMaintenance',
             'SslCertificatePresence',
-            'EnvVar_APP_ENV'
+            'EnvVar_APP_ENV',
+            'DriftCheckScheduledTask'
         )
 
         foreach ($item in $expectedItems) {

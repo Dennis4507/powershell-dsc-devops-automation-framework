@@ -21,6 +21,11 @@
             ScheduledJobs    = @()
             SSLCertPath      = 'certs'
             EnvVars          = @{ DSC_SANDBOX_TEST = 'hello-from-dsc-framework' }
+            DriftCheck       = @{
+                TaskName   = 'ControlPlane-DriftCheck-Sandbox'
+                Time       = '02:00'
+                ReportPath = 'C:\Temp\DSC-ControlPlane-Test\drift-report.txt'
+            }
         }
     )
 }

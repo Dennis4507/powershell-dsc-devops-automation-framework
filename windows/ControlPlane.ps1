@@ -25,6 +25,10 @@ Configuration ControlPlane
     # path via $using:HelpersModulePath to load that toolbox before using it.
     $HelpersModulePath = Join-Path $PSScriptRoot 'ControlPlane.Helpers.psm1'
 
+    # The nightly drift-check script (checklist item 9) - same idea, so the
+    # DriftCheckScheduledTask resource below can find it via $using:.
+    $DriftCheckScriptPath = Join-Path $PSScriptRoot 'Invoke-DriftCheck.ps1'
+
     Node $AllNodes.NodeName
     {
         # --- Checklist item 1: the project folder must exist ---
@@ -163,6 +167,36 @@ Configuration ControlPlane
                 Name   = $varName
                 Value  = $Node.EnvVars[$varName]
             }
+        }
+
+        # --- Checklist item 9: a nightly Scheduled Task must exist that
+        # checks this machine for drift and writes a report, unattended.
+        # This is the same pattern a real Concentrix PowerShell engineer
+        # (Andrea) described using in production during Denis's interview -
+        # see README section 12 for the story. It reuses
+        # Test-ScheduledJobRegistered because "is a Task Scheduler task
+        # registered under this name?" is exactly the same question as
+        # checklist item 6 - no new logic needed, just a new task name. ---
+        Script DriftCheckScheduledTask
+        {
+            GetScript = {
+                Import-Module $using:HelpersModulePath -Force
+                return @{ Result = Test-ScheduledJobRegistered -TaskName $using:Node.DriftCheck.TaskName }
+            }
+            TestScript = {
+                Import-Module $using:HelpersModulePath -Force
+                return Test-ScheduledJobRegistered -TaskName $using:Node.DriftCheck.TaskName
+            }
+            SetScript = {
+                $reportPath = $using:Node.DriftCheck.ReportPath
+                $scriptPath = $using:DriftCheckScriptPath
+                $argument   = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -ReportPath `"$reportPath`""
+
+                $action  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argument
+                $trigger = New-ScheduledTaskTrigger -Daily -At $using:Node.DriftCheck.Time
+                Register-ScheduledTask -TaskName $using:Node.DriftCheck.TaskName -Action $action -Trigger $trigger -Force
+            }
+            DependsOn = '[File]ProjectDirectory'
         }
     }
 }

@@ -337,7 +337,7 @@ git push -u origin main
 
 ## What "Done" Looks Like
 
-- [x] `windows/ControlPlane.ps1` — DSC config, 8 checklist items, comment-based help
+- [x] `windows/ControlPlane.ps1` — DSC config, 9 checklist items (incl. a nightly drift-check Scheduled Task, added after the Concentrix interview — see README section 12), comment-based help
 - [x] `windows/ControlPlane.Helpers.psm1` — testable logic, extracted for real unit testing
 - [x] `windows/ControlPlane.Tests.ps1` — Pester tests covering all resources (15/15 passing)
 - [x] `windows/ControlPlane.config.psd1` — config data template

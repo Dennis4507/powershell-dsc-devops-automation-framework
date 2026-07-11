@@ -33,6 +33,16 @@
             EnvVars = @{
                 APP_ENV = 'production'
             }
+
+            # A nightly Scheduled Task that checks this machine for drift
+            # (does it still match this configuration?) and writes a plain
+            # text report - nobody has to check by hand. It never fixes
+            # anything by itself; see windows/Invoke-DriftCheck.ps1.
+            DriftCheck = @{
+                TaskName   = 'ControlPlane-DriftCheck'
+                Time       = '02:00'
+                ReportPath = 'C:\Projects\MyProject\drift-report.txt'
+            }
         }
     )
 }

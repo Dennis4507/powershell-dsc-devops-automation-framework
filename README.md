@@ -244,10 +244,11 @@ powershell-dsc-devops-automation-framework/
 ├── CLAUDE.md                              ✅ internal build spec / AI context
 │
 ├── windows/                                                                  Layer 1
-│   ├── ControlPlane.ps1                   ✅ DONE - the checklist (8 items, see below)
+│   ├── ControlPlane.ps1                   ✅ DONE - the checklist (9 items, see below)
 │   ├── ControlPlane.Helpers.psm1          ✅ DONE - the testable "is this correct?" logic
 │   ├── ControlPlane.config.psd1           ✅ DONE - the answer sheet / template
 │   ├── Apply-ControlPlane.ps1             ✅ DONE - one-command "run the checklist" script
+│   ├── Invoke-DriftCheck.ps1              ✅ DONE - nightly drift report (idea from a real Concentrix interview, see 12)
 │   └── ControlPlane.Tests.ps1             ✅ DONE - Pester tests (15/15 passing)
 │
 ├── docs/
@@ -277,7 +278,7 @@ powershell-dsc-devops-automation-framework/
 
 ## 6. Deep dive: `ControlPlane.ps1` (the checklist - DONE)
 
-Eight checklist items, in the order they run:
+Nine checklist items, in the order they run:
 
 | # | Item name | What it checks | If wrong |
 |---|---|---|---|
@@ -289,6 +290,7 @@ Eight checklist items, in the order they run:
 | 6 | `ScheduledJob_<name>` (one per job) | Is each scheduled job registered in Task Scheduler? | Registers it |
 | 7 | `SslCertificatePresence` | Do SSL certificate files exist? | **Warns only** - never auto-creates certificates (security-sensitive, must be done by a human) |
 | 8 | `EnvVar_<name>` (one per variable) | Is each required environment variable set to the right value? | Sets it |
+| 9 | `DriftCheckScheduledTask` | Is the nightly drift-check task registered in Task Scheduler? | Registers it - see the story behind this one in section 12 |
 
 **Ordering:** some items use `DependsOn` to run in the right sequence
 (e.g. Python must be installed before the virtual environment can be
@@ -301,6 +303,10 @@ requires touching this file.
 themselves anymore** - each just imports and calls a function from
 `ControlPlane.Helpers.psm1` (see section 7). That's a deliberate
 refactor, explained there, that's what makes this checklist testable.
+Item 9 reuses that same section-7 function (`Test-ScheduledJobRegistered`)
+rather than adding a new one - "is a Task Scheduler task registered under
+this name?" is the same question item 6 already answers, just asked about
+a different task.
 
 **A real gotcha we hit and fixed:** a stray "smart" dash character
 (`—` instead of a plain `-`) silently broke the whole script, because
@@ -809,6 +815,45 @@ added back properly once it has actual content (see the roadmap).
 actually causing the conflict and deal with it properly later, rather than
 stopping everything to fix a permission that isn't needed yet.
 
+### A real production insight, straight from a working PowerShell engineer
+
+During the Concentrix interview for this exact project (Friday
+2026-07-10), a PowerShell engineer there named **Andrea** described how
+her own team actually runs DSC in production. In her own words: *"we're
+putting it on task scheduler... it will connect to all the VMs... it runs
+at night because sometimes it takes a few hours to go through each of
+them. So then we get a report and we see exactly what's happening right
+now in our infrastructure."*
+
+That's a real team, checking a real fleet of machines, on a nightly
+schedule, unattended, ending in a report a human reads the next morning
+instead of checking every machine by hand. Before that conversation, this
+project didn't have anything like it: `ControlPlane.ps1` only ever ran
+when a person manually ran `Apply-ControlPlane.ps1`. There was no
+"checks itself on its own and tells you what it found."
+
+**Checklist item 9 exists because of that conversation.** It's a Script
+resource, `DriftCheckScheduledTask`, that ensures a Windows Scheduled
+Task exists which runs
+[`windows/Invoke-DriftCheck.ps1`](windows/Invoke-DriftCheck.ps1) every
+night. That script asks the DSC Local Configuration Manager one question
+- "does this machine still match what we told it to be?" - using
+`Test-DscConfiguration -Detailed`, then writes a plain text report to
+disk. It never fixes anything by itself; fixing drift still requires a
+human to re-run `Apply-ControlPlane.ps1`, the same approval-gate rule
+used everywhere else in this project. It's the same idea Andrea
+described, scaled down from "a whole fleet, checked over a few hours" to
+"one machine, checked in seconds" - but the pattern (scheduled, not
+instant; unattended; ends in a report, not a silent fix) is identical.
+
+This is also a small but genuine validation of a decision already made
+elsewhere in this project: the trigger/wiring layer in the roadmap below
+was already designed as **pull-based** (a scheduled check, not an instant
+push notification) for security reasons. Hearing a real production team
+independently land on the same "scheduled, unattended, report-driven"
+shape was good confirmation that reasoning holds up outside this project
+too.
+
 ---
 
 ## 13. Scaling past one machine (relevant once client rollouts start)
@@ -887,6 +932,11 @@ Invoke-Pester -Path .\windows\ControlPlane.Tests.ps1 -Output Detailed
   reviewed and ready to incur real cost (Layer 3)
 - [ ] Prove `azure/azure-ad-dsc.ps1` against a free Microsoft 365
   developer tenant, following `docs/m365-dsc-production-notes.md` (Layer 3)
+- [ ] Let the new nightly drift-check Scheduled Task (checklist item 9,
+  `windows/Invoke-DriftCheck.ps1`) actually run for real and confirm the
+  report file gets written correctly - written and reviewed, not yet
+  proven against a live Scheduled Task the way the rest of the checklist
+  was in section 12 (Layer 1)
 
 **Already written, not just planned:** `docs/how-to-plug-in.md` (a real
 step-by-step guide, including what to do if something goes wrong),
@@ -897,7 +947,8 @@ VM over WinRM, including the same disk-space check we did by hand - see
 `docs/m365-dsc-production-notes.md`), `linux/control-plane.yml` (the
 Ansible equivalent of the Windows checklist, syntax-checked for real via
 WSL), `.github/workflows/validate-dsc.yml` (real CI content, live now),
-the 4 skills files, and the `approved-fixes/` precedent library
+`windows/Invoke-DriftCheck.ps1` (the nightly drift-report script behind
+checklist item 9), the 4 skills files, and the `approved-fixes/` precedent library
 (Layer 2) - see section 11. None of the Terraform or Ansible pieces have
 been run against a real Azure
 subscription yet - both are honestly labeled as not yet applied. What's
